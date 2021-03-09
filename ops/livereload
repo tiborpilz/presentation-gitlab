@@ -3,4 +3,10 @@
 SCRIPT=$(readlink -f "$0")
 SCRIPTPATH=$(dirname "$SCRIPT")
 
-fswatch --exclude dist --recursive . | xargs -n1 $SCRIPTPATH/build
+fswatch --exclude dist --recursive . | xargs -n1 $SCRIPTPATH/build &
+P1=$!
+
+python3 -m http.server -d $SCRIPTPATH/../dist &
+P2=$!
+
+wait $P1 $P2

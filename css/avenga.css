@@ -1,0 +1,19 @@
+.reveal-viewport {
+  background-image: url('https://www.avenga.com/wp-content/themes/custom-theme/images/logos/logo-negative-white.svg');
+  background-repeat: no-repeat;
+  background-position: right 25px top 25px;
+  background-size: auto 5%, 20% 20%;
+}
+
+.reveal h2,
+.reveal h3,
+.reveal h4,
+.reveal h5,
+.reveal h6 {
+  text-align: left;
+  margin-bottom: 1em;
+}
+
+.reveal pre code {
+  max-height: 500px;
+}

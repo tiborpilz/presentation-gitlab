@@ -2,8 +2,11 @@
 
 echo "Building..."
 
+rm -r dist/*
+
 mkdir -p dist/
 cp -r css dist/css
+cp -r images dist/images
 
 pandoc presentation/**.md\
   -o dist/index.html\

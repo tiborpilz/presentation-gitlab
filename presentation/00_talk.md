@@ -9,7 +9,6 @@ date: 15.03.2021
 - Intro
 - Jobs
 - Pipelines
-- Variablen
 - Include/Extends
 - Carboncopy
 
@@ -56,15 +55,13 @@ Sofern nicht anders konfiguriert, stoppen fehlgeschlagene Scripts die Pipeline u
 
 ::: notes
 
-
-
 :::
 
 ---
 
-## Docker
+## Job - `image`
 
-```{.yaml}
+```{.yaml data-line-numbers=[|2|]}
 node_job:
   image: node:12
   script:
@@ -72,7 +69,7 @@ node_job:
     - npm run test
 ```
 
-- Jobs werden (meistens) per Docker-Container ausgeführt
+- `image` gibt das Docker-Image an
 - Wird kein Image angegeben, benutzt Gitlab das Instanzenweite Fallback-Image
 
 ::: notes
@@ -83,9 +80,7 @@ Auf code.avenga.cloud wird Standardmässig `avenga/gitlab-job` benutzt
 
 ---
 
-## Container - DinD
-
-- Da Jobs innerhalb eines Containers ausgeführt werden, ist `dind` notwendig
+## Job - Docker in Docker
 
 ```{.yaml}
 build_docker:
@@ -93,39 +88,40 @@ build_docker:
   script: docker build .
 ```
 
+- Um Docker innerhalb eines Jobs zu nutzen, ist Docker-in-Docker nötig
+- Erweiterte Docker-Features wie `volumes` oder `networks` haben Fallstricke
+- Gitlab hat eine Container-Registry
+
+::: notes
+
+Einige Fallstricke bei der Ausführung, besonders wenn ein Volume gemounted werden, oder per `docker-compose` Netzwerke erstellt werden sollen.
+
+:::
+
 ---
 
 ## Variablen
 
-- Predefined:
+- Vordefiniert
   - Von Gitlab vorgegeben
   - Informationen über die Pipeline, das Projekt, das Repository, etc.
-- Userdefined:
+- Userdefiniert:
   - In der UI oder der Config definierbar
-
-::: notes
-
-In Gitlab gibt es Variablen, die entweder Userdefiniert, oder von Gitlab vorgegeben sind.
-Userdefinierte Variablen können über die Config oder pro Projekt/Gruppe/Instanz per UI definiert werden.
-Von Gitlab vorgegebene Variablen liefern u.A. Informationen über das Projekt, in dem die Pipeline ausgeführt wird.
-
-:::
 
 ---
 
 ## Variablen - Userdefiniert
 
 
-```{.yaml data-line-numbers=[6|8]}
+```{.yaml data-line-numbers=[|2,6|7|]}
 variables:
-  NAME: "Welt"
+  GREETING: "Hallo"
 
 greeting_job:
   variables:
-    GREETING: "Hallo"
+    NAME: "Welt"
   script: echo $GREETING, $NAME!
 ```
-
 
 ::: notes
 
@@ -133,12 +129,26 @@ greeting_job:
 
 :::
 
-## Variablen - Prädefiniert
+---
+
+## Variablen - Vordefiniert
 
 Beispiele:
-  - `CI_COMMIT_SHA` - SHA des Commits, für den die Pipeline ausgeführt wird.
-  - `CI_PROJECT_TITLE` - Titel des Projekts
-  - `CI_REGISTRY_IMAGE` - Image des Projekts in der Gitlab Container Registry
+
+- `CI_COMMIT_SHA`
+- `CI_PROJECT_TITLE`
+- `CI_REGISTRY_IMAGE`
+
+::: notes
+
+- SHA des Commits, für den die Pipeline ausgeführt wird.
+- Titel des Projekts
+- Image des Projekts in der Gitlab Container Registry
+
+Es gibt sehr viele Vordefinierte Variablen, es lohnt sich hier besonders, oft in die Docs zu schauen
+
+:::
+
 ---
 
 ## Variablen - Anwendung
@@ -147,28 +157,50 @@ Beispiele:
 - In der Praxis ist es sinnvoll, prädefinierte und userdefinierte Variablen zu verbinden
 - Beispiel: dynamisches Image
 
-```{.yaml}
+```{.yaml data-line-numbers=[|2|5|]}
 variables:
   HELPER_IMAGE: $CI_REGISTRY_IMAGE/helper
 
 dynamic_image_job:
   image: $HELPER_IMAGE
-  ...
+  script: ...
 ```
 
 ---
 
-## Regeln
+## Job - `rules`
 
 - Die Ausführung von Jobs kann durch `rules` eingeschränkt werden
+- Ein Job kann mehrere `rules` haben
+- `if` evaluiert ein Statement
+- `changes` überprüft, ob Dateien verändert wurden
+- `exists` überprüft, ob Dateien existieren
+
+---
+
+## Job - `rules`
+
+```{.yaml}
+rules_job:
+  script: echo "Hello, rules!"
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes:
+        - service_a/**
+```
+
+::: notes
+
+Wird nur ausgeführt, wenn Änderungen im `service_a` Directory sind *und* die Pipeline für einen Merge Request ausgeführt wird.
+
+:::
 
 ---
 
 ## Stages
 
-- Um die Reihenfolge der Jobs festzulegen, sind Stages notwendig
-- Stages werden als Top-Level Array definiert
-- Die Zugehörigkeit der Jobs wird per `stage`-Keyword angegeben
+- Bestimmen die Reihenfolge der Jobs
+- Werden als Top-Level Array definiert
 - Es werden alle Jobs einer Stage ausgeführt, bevor die nächste Stage angefangen wird
 
 ---
@@ -209,7 +241,7 @@ build:
 
 ## Stages - Mehrere Services 
 
-```{.yaml data-line-numbers=[|2,5,12|3,16,20|5,16|12,20|]}
+```{.yaml data-line-numbers=[|1-3|5-14|16-22|5-10,16-18|12-14,20-22|]}
 stages:
   - build
   - deploy
@@ -251,8 +283,8 @@ Die Einteilung in Stages lässt zuerst beide Bauprozesse stattfinden, dann beide
 
 - Directed Acyclic Graph
 - Alternative / Ergänzung zu Stages
-- Beschreibt für jeden Job die Jobs, die vorher ausgeführt werden müssen
 - Wird per `needs` in den Jobs angegeben
+- Beschreibt für jeden Job die Jobs, die vorher ausgeführt werden müssen
 
 ---
 
@@ -302,16 +334,25 @@ deploy_bar:
 
 ---
 
+## Config Strukturieren
+
+- Extends
+  - "erbt" einen bestehenden Job
+- Include
+  - Import von Gitlab-Config Dateien
 
 ---
 
-### Presets
-### Priorität
-### Anwendung
+## Extends
 
----
-
-# Extends
+```{.yaml}
+.echo_before:
+  before_script: echo "Starting the job"
+  
+extends_job:
+  extends: .echo_before
+  script: echo "Doing the job"
+```
 
 ## Hidden Jobs
 
@@ -320,12 +361,3 @@ deploy_bar:
 # Include
 
 ---
-
-# Rules
-
-## if
-## changes
-## when
----
-
-## DAGs

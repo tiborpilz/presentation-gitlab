@@ -26,7 +26,7 @@ date: 15.03.2021
 
 ---
 
-# Jobs
+# Job
 
 ```{.yaml}
 hello_world_job:
@@ -35,16 +35,11 @@ hello_world_job:
 ```
 
 - Kleinste Einheit einer Pipeline
+- Der Name darf nicht einem Gitlab-Keyword entsprechen
 - Script beschreibt die Aktion
 
 ::: notes
 
-- Ein Job ist die kleinste Einheit einer Pipeline
-- Job ist ein Top-Level Objekt
-- Bis auf Ausnahmen (Keywords) wird der Key frei gewählt und ist der Name des Jobs
-- Die Ausnahmen sind Gitlab Keywords
-- Script ist notwendig, beschreibt die Aktion, die ausgeführt werden soll
-Eine oder mehrere Zeilen Shellscript.
 Der Exit-Code des Shellscripts bestimmt, ob der Job fehlschlägt oder erfolgreich ist.
 Sofern nicht anders konfiguriert, stoppen fehlgeschlagene Scripts die Pipeline und lassen sie fehlschlagen.
 
@@ -52,12 +47,24 @@ Sofern nicht anders konfiguriert, stoppen fehlgeschlagene Scripts die Pipeline u
 
 ---
 
-## Jobs - Image
+## Job - Ausführung
 
-- Jobs werden per Container ausgeführt
-- Das Container-Image kann pro Pipeline oder pro Job angegeben werden
+- Gitlab Runner arbeitet die Jobs ab
+- Jobs werden per Docker-Container ausgeführt
+- `script` läuft innerhalb des Repositories
+- Zusätzlich zu `script` kann `before_script` und `after_script` benutzt werden
 
-```{.yaml data-line-numbers=[2|4,5]}
+::: notes
+
+
+
+:::
+
+---
+
+## Docker
+
+```{.yaml}
 node_job:
   image: node:12
   script:
@@ -65,12 +72,95 @@ node_job:
     - npm run test
 ```
 
+- Jobs werden (meistens) per Docker-Container ausgeführt
+- Wird kein Image angegeben, benutzt Gitlab das Instanzenweite Fallback-Image
+
 ::: notes
 
-Das Image muss nicht angegeben werden
-Standardmässig wird avenga/gitlab-job benutzt
+Auf code.avenga.cloud wird Standardmässig `avenga/gitlab-job` benutzt
 
 ::: 
+
+---
+
+## Container - DinD
+
+- Da Jobs innerhalb eines Containers ausgeführt werden, ist `dind` notwendig
+
+```{.yaml}
+build_docker:
+  image: docker:dind
+  script: docker build .
+```
+
+---
+
+## Variablen
+
+- Predefined:
+  - Von Gitlab vorgegeben
+  - Informationen über die Pipeline, das Projekt, das Repository, etc.
+- Userdefined:
+  - In der UI oder der Config definierbar
+
+::: notes
+
+In Gitlab gibt es Variablen, die entweder Userdefiniert, oder von Gitlab vorgegeben sind.
+Userdefinierte Variablen können über die Config oder pro Projekt/Gruppe/Instanz per UI definiert werden.
+Von Gitlab vorgegebene Variablen liefern u.A. Informationen über das Projekt, in dem die Pipeline ausgeführt wird.
+
+:::
+
+---
+
+## Variablen - Userdefiniert
+
+
+```{.yaml data-line-numbers=[6|8]}
+variables:
+  NAME: "Welt"
+
+greeting_job:
+  variables:
+    GREETING: "Hallo"
+  script: echo $GREETING, $NAME!
+```
+
+
+::: notes
+
+`variables` ist ein Keyword und damit ein Beispiel für einen ungültigen Job-Namen
+
+:::
+
+## Variablen - Prädefiniert
+
+Beispiele:
+  - `CI_COMMIT_SHA` - SHA des Commits, für den die Pipeline ausgeführt wird.
+  - `CI_PROJECT_TITLE` - Titel des Projekts
+  - `CI_REGISTRY_IMAGE` - Image des Projekts in der Gitlab Container Registry
+---
+
+## Variablen - Anwendung
+
+- Variablen sind nicht nur im `script` anwendbar
+- In der Praxis ist es sinnvoll, prädefinierte und userdefinierte Variablen zu verbinden
+- Beispiel: dynamisches Image
+
+```{.yaml}
+variables:
+  HELPER_IMAGE: $CI_REGISTRY_IMAGE/helper
+
+dynamic_image_job:
+  image: $HELPER_IMAGE
+  ...
+```
+
+---
+
+## Regeln
+
+- Die Ausführung von Jobs kann durch `rules` eingeschränkt werden
 
 ---
 
@@ -85,7 +175,7 @@ Standardmässig wird avenga/gitlab-job benutzt
 
 ## Stages
 
-```{.yaml data-line-numbers=[1-18|1-3|5-18|2,6,11|3,16]}
+```{.yaml data-line-numbers=[|1-3|5-15|2,6,10|3,15|]}
 stages:
   - test
   - build
@@ -111,7 +201,7 @@ build:
 
 ---
 
-## Stages
+## Stages - Visualisierung
 
 ![Test und Build Stages](images/stages.png "Test und Build Stages")
 
@@ -212,27 +302,6 @@ deploy_bar:
 
 ---
 
-## Variablen
-
-In Gitlab gibt es Variablen, die entweder Userdefiniert, oder von Gitlab vorgegeben sind.
-Userdefinierte Variablen können über die Config oder pro Projekt/Gruppe/Instanz per UI definiert werden.
-Von Gitlab vorgegebene Variablen liefern u.A. Informationen über das Projekt, in dem die Pipeline ausgeführt wird.
-
----
-
-## Variablen - Userdefiniert
-
-
-```{.yaml data-line-numbers=[6|8]}
-variables:
-  NAME: "Welt"
-
-greeting_job:
-  variables:
-    GREETING: "Hallo"
-  script: 
-    - echo $GREETING, $NAME!
-```
 
 ---
 

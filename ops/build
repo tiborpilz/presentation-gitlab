@@ -16,6 +16,7 @@ pandoc presentation/**.md\
   -V highlightjs\
   -V highlightjs-theme:zenburn\
   -V transition=fade\
+  -V center=false\
   -L revealjs-codeblock.lua\
   --css css/avenga.css\
   -i

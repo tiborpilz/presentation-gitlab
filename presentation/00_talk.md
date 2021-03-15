@@ -36,10 +36,10 @@ hello_world_job:
 - Kleinste Einheit einer Pipeline
 - Der Name darf nicht einem Gitlab-Keyword entsprechen
 - Script beschreibt die Aktion
+- Exit-Code gibt an, ob ein Job fehlschlägt
 
 ::: notes
 
-Der Exit-Code des Shellscripts bestimmt, ob der Job fehlschlägt oder erfolgreich ist.
 Sofern nicht anders konfiguriert, stoppen fehlgeschlagene Scripts die Pipeline und lassen sie fehlschlagen.
 
 :::
@@ -54,6 +54,8 @@ Sofern nicht anders konfiguriert, stoppen fehlgeschlagene Scripts die Pipeline u
 - Zusätzlich zu `script` kann `before_script` und `after_script` benutzt werden
 
 ::: notes
+
+Gitlab Runner kann auch so definiert werden, dass er Scripte auf dem Server laufen lässt, ist für uns aber irrelevant.
 
 :::
 
@@ -74,7 +76,7 @@ node_job:
 
 ::: notes
 
-Auf code.avenga.cloud wird Standardmässig `avenga/gitlab-job` benutzt
+`image` ist eins der Keywords.
 
 ::: 
 
@@ -122,6 +124,8 @@ greeting_job:
     NAME: "Welt"
   script: echo $GREETING, $NAME!
 ```
+
+- Job-Variablen überschreiben Pipeline-Variablen
 
 ::: notes
 
@@ -175,6 +179,7 @@ dynamic_image_job:
 - `if` evaluiert ein Statement
 - `changes` überprüft, ob Dateien verändert wurden
 - `exists` überprüft, ob Dateien existieren
+- `when` - z.B. `on_success`, `on_failure`, `never`
 
 ---
 
@@ -200,13 +205,13 @@ rules_job:
 
 ## `rules` - Workflow
 
-- `rules` für eine gesamte Pipeline können per `workflow` definiert werden
-
 ```{.yaml}
 workflow:
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH  
 ```
+
+- `rules` für eine gesamte Pipeline können per `workflow` definiert werden
 
 ---
 
@@ -220,7 +225,7 @@ workflow:
 
 ## Stages
 
-```{.yaml data-line-numbers=[|1-3|5-15|2,6,10|3,15|]}
+```{.yaml data-line-numbers=[|1-3|5-15|2,6,10|3,14|]}
 stages:
   - test
   - build
@@ -250,6 +255,9 @@ build:
 
 ![Test und Build Stages](images/stages.png "Test und Build Stages")
 
+::: notes
+CI/CD - Pipelines - Pipeline auswählen
+:::
 ---
 
 ## Stages - Mehrere Services 
@@ -298,8 +306,7 @@ Die Einteilung in Stages lässt zuerst beide Bauprozesse stattfinden, dann beide
 
 - Directed Acyclic Graph
 - Alternative / Ergänzung zu Stages
-- Wird per `needs` in den Jobs angegeben
-- Beschreibt für jeden Job die Jobs, die vorher ausgeführt werden müssen
+- Beschreibt für einen Job die Jobs, die vorher ausgeführt werden müssen
 
 ---
 

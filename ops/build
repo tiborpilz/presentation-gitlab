@@ -19,4 +19,5 @@ pandoc presentation/**.md\
   -V center=false\
   -V width=1280\
   -L revealjs-codeblock.lua\
+  -i\
   --css css/avenga.css

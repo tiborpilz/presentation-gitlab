@@ -1,8 +1,8 @@
 .reveal-viewport {
   background-image: url('https://www.avenga.com/wp-content/themes/custom-theme/images/logos/logo-negative-white.svg');
   background-repeat: no-repeat;
-  background-position: right 25px top 25px;
-  background-size: auto 5%, 20% 20%;
+  background-position: right 50px top 25px;
+  background-size: auto 60px, 20% 20%;
 }
 
 .reveal h2,

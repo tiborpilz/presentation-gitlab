@@ -11,9 +11,25 @@
 .reveal h5,
 .reveal h6 {
   text-align: left;
-  margin-bottom: 1em;
+  margin-bottom: 0.5em;
+  text-transform: initial;
+  margin-left: 1em;
+}
+
+.reveal code {
+  line-height: 1;
 }
 
 .reveal pre code {
-  max-height: 500px;
+  max-height: 550px;
+  line-height: 1.1;
+}
+
+.reveal pre code.code-more {
+  max-height: 600px;
+  font-size: 0.6em;
+}
+
+.reveal pre code.code-more tr {
+  line-height: 1.1;
 }

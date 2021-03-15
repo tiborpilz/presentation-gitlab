@@ -4,20 +4,20 @@ author: Tibor Pilz
 date: 15.03.2021
 ---
 
-# Overview
+# Gitlab CI/CD
 
 - Intro
 - Jobs
 - Pipelines
-- Include/Extends
-- Carboncopy
+- Config Struktur - Include/Extends
+- Beispiel: Carboncopy
 
 ---
 
 # Intro
 
 - Gitlab CI/CD führt Aktionen aus
-- Konfiguriert durch `gitlab-ci.yml`
+- Konfiguriert durch `.gitlab-ci.yml`
 - Konfiguration beschreibt eine Pipeline
 - Eine Pipeline besteht aus einem oder mehreren Jobs
 - Jobs werden in Stages eingeteilt
@@ -25,7 +25,7 @@ date: 15.03.2021
 
 ---
 
-# Job
+## Job
 
 ```{.yaml}
 hello_world_job:
@@ -145,7 +145,7 @@ Beispiele:
 - Titel des Projekts
 - Image des Projekts in der Gitlab Container Registry
 
-Es gibt sehr viele Vordefinierte Variablen, es lohnt sich hier besonders, oft in die Docs zu schauen
+Es gibt sehr viele vordefinierte Variablen, es lohnt sich hier besonders, oft in die Docs zu schauen
 
 :::
 
@@ -157,7 +157,7 @@ Es gibt sehr viele Vordefinierte Variablen, es lohnt sich hier besonders, oft in
 - In der Praxis ist es sinnvoll, prädefinierte und userdefinierte Variablen zu verbinden
 - Beispiel: dynamisches Image
 
-```{.yaml data-line-numbers=[|2|5|]}
+```{.yaml .fragment data-line-numbers=[|2|5|]}
 variables:
   HELPER_IMAGE: $CI_REGISTRY_IMAGE/helper
 
@@ -184,16 +184,29 @@ dynamic_image_job:
 rules_job:
   script: echo "Hello, rules!"
   rules:
+    - if: '$DONT_RUN_JOB'
+      when: never
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
       changes:
-        - service_a/**
+        - foo/**
 ```
 
 ::: notes
 
-Wird nur ausgeführt, wenn Änderungen im `service_a` Directory sind *und* die Pipeline für einen Merge Request ausgeführt wird.
 
 :::
+
+---
+
+## `rules` - Workflow
+
+- `rules` für eine gesamte Pipeline können per `workflow` definiert werden
+
+```{.yaml}
+workflow:
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH  
+```
 
 ---
 
@@ -275,6 +288,8 @@ Die Einteilung in Stages lässt zuerst beide Bauprozesse stattfinden, dann beide
 
 ---
 
+## Stages - Visualisierung
+
 ![Stage-Pipeline für Services `foo` und `bar`](images/stages-services.png)
 
 ---
@@ -316,10 +331,6 @@ deploy_bar:
   needs: [build_bar]
 ```
 
-::: notes
-
-:::
-
 ---
 
 ## DAG Visualisierung
@@ -334,7 +345,7 @@ deploy_bar:
 
 ---
 
-## Config Strukturieren
+## Konfiguration Strukturieren
 
 - Extends
   - "erbt" einen bestehenden Job
@@ -345,19 +356,52 @@ deploy_bar:
 
 ## Extends
 
-```{.yaml}
+```{.yaml data-line-numbers=[|1|6|]}
 .echo_before:
-  before_script: echo "Starting the job"
+  before_script:
+    - echo "Starting the job"
   
 extends_job:
   extends: .echo_before
   script: echo "Doing the job"
 ```
 
-## Hidden Jobs
+- `extends` Keyword
+- `.` - Jobs werden ignoriert
+
+::: notes
+Jobs mit einem "." werden ignoriert, können aber per `extends` benutzt werden.
+Diese Jobs bieten sich dadurch als Template an.
+Eigenschaften des erweiterten Jobs werden vom erweiternden Job überschrieben
+:::
 
 ---
 
-# Include
+## Include
+
+- Andere yaml-Dateien können per `include` eingebunden werden
+- `include`-Dateien werden immer zuerst evaluiert
+- lokale Config überschreibt `include`
+- Mögliche `include`s:
+  - `local`
+  - `project` / `file`
+  - `remote`
+  - `template`
+
+::: notes
+
+:::
 
 ---
+
+## Include
+
+```{.yaml}
+include:
+  - local: '.gitlab-ci-tests.yml'
+  - project: 'gruppe/gitlab-templates'
+    file: '.gitlab-ci-template.yml'
+```
+
+---
+

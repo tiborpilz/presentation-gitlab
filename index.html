@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="generator" content="pandoc">
+  <meta name="author" content="Tibor Pilz">
+  <title>Gitlab CI/CD</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, minimal-ui">
+  <link rel="stylesheet" href="https://unpkg.com/reveal.js@^4//dist/reset.css">
+  <link rel="stylesheet" href="https://unpkg.com/reveal.js@^4//dist/reveal.css">
+  <style>
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    span.underline{text-decoration: underline;}
+    div.column{display: inline-block; vertical-align: top; width: 50%;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    ul.task-list{list-style: none;}
+    .display.math{display: block; text-align: center; margin: 0.5rem auto;}
+  </style>
+  <link rel="stylesheet" href="https://unpkg.com/reveal.js@^4//dist/theme/black.css" id="theme">
+  <link rel="stylesheet" href="https://unpkg.com/reveal.js@^4//plugin/highlight/zenburn.css">
+  <link rel="stylesheet" href="css/avenga.css"/>
+</head>
+<body>
+  <div class="reveal">
+    <div class="slides">
+
+<section id="title-slide">
+  <h1 class="title">Gitlab CI/CD</h1>
+  <p class="author">Tibor Pilz</p>
+  <p class="date">15.03.2021</p>
+</section>
+
+<section id="gitlab-cicd" class="slide level1">
+<h1>Gitlab CI/CD</h1>
+<ul>
+<li class="fragment">Intro</li>
+<li class="fragment">Jobs</li>
+<li class="fragment">Pipelines</li>
+<li class="fragment">Config Struktur - Include/Extends</li>
+<li class="fragment">Beispiel: Carboncopy</li>
+</ul>
+</section>
+<section id="intro" class="slide level1">
+<h1>Intro</h1>
+<ul>
+<li class="fragment">Gitlab CI/CD führt Aktionen aus</li>
+<li class="fragment">Konfiguriert durch <code>.gitlab-ci.yml</code></li>
+<li class="fragment">Konfiguration beschreibt eine Pipeline</li>
+<li class="fragment">Eine Pipeline besteht aus einem oder mehreren Jobs</li>
+<li class="fragment">Jobs werden in Stages eingeteilt</li>
+<li class="fragment">Stages bestimmen die Reihenfolge der Jobs</li>
+</ul>
+</section>
+<section class="slide level1">
+
+<h2 id="job">Job</h2>
+<pre ><code class="yaml">hello_world_job:
+  script:
+    - echo "Hallo, Welt!"</code></pre>
+<ul>
+<li class="fragment">Kleinste Einheit einer Pipeline</li>
+<li class="fragment">Der Name darf nicht einem Gitlab-Keyword entsprechen</li>
+<li class="fragment">Script beschreibt die Aktion</li>
+<li class="fragment">Exit-Code gibt an, ob ein Job fehlschlägt</li>
+</ul>
+<aside class="notes">
+<p>Sofern nicht anders konfiguriert, stoppen fehlgeschlagene Scripts die Pipeline und lassen sie fehlschlagen.</p>
+</aside>
+</section>
+<section class="slide level1">
+
+<h2 id="job---ausführung">Job - Ausführung</h2>
+<ul>
+<li class="fragment">Gitlab Runner arbeitet die Jobs ab</li>
+<li class="fragment">Jobs werden per Docker-Container ausgeführt</li>
+<li class="fragment"><code>script</code> läuft innerhalb des Repositories</li>
+<li class="fragment">Zusätzlich zu <code>script</code> kann <code>before_script</code> und <code>after_script</code> benutzt werden</li>
+</ul>
+<aside class="notes">
+<p>Gitlab Runner kann auch so definiert werden, dass er Scripte auf dem Server laufen lässt, ist für uns aber irrelevant.</p>
+</aside>
+</section>
+<section class="slide level1">
+
+<h2 id="job---image">Job - <code>image</code></h2>
+<pre ><code class="yaml" data-line-numbers="[|2|]">node_job:
+  image: node:12
+  script:
+    - npm install
+    - npm run test</code></pre>
+<ul>
+<li class="fragment"><code>image</code> gibt das Docker-Image an</li>
+<li class="fragment">Wird kein Image angegeben, benutzt Gitlab das Instanzenweite Fallback-Image</li>
+</ul>
+<aside class="notes">
+<p><code>image</code> ist eins der Keywords.</p>
+</aside>
+</section>
+<section class="slide level1">
+
+<h2 id="job---docker-in-docker">Job - Docker in Docker</h2>
+<pre ><code class="yaml">build_docker:
+  image: docker:dind
+  script: docker build .</code></pre>
+<ul>
+<li class="fragment">Um Docker innerhalb eines Jobs zu nutzen, ist Docker-in-Docker nötig</li>
+<li class="fragment">Erweiterte Docker-Features wie <code>volumes</code> oder <code>networks</code> haben Fallstricke</li>
+<li class="fragment">Gitlab hat eine Container-Registry</li>
+</ul>
+<aside class="notes">
+<p>Einige Fallstricke bei der Ausführung, besonders wenn ein Volume gemounted werden, oder per <code>docker-compose</code> Netzwerke erstellt werden sollen.</p>
+</aside>
+</section>
+<section class="slide level1">
+
+<h2 id="variablen">Variablen</h2>
+<ul>
+<li class="fragment">Vordefiniert
+<ul>
+<li class="fragment">Von Gitlab vorgegeben</li>
+<li class="fragment">Informationen über die Pipeline, das Projekt, das Repository, etc.</li>
+</ul></li>
+<li class="fragment">Userdefiniert:
+<ul>
+<li class="fragment">In der UI oder der Config definierbar</li>
+</ul></li>
+</ul>
+</section>
+<section class="slide level1">
+
+<h2 id="variablen---userdefiniert">Variablen - Userdefiniert</h2>
+<pre ><code class="yaml" data-line-numbers="[|2,6|7|]">variables:
+  GREETING: "Hallo"
+
+greeting_job:
+  variables:
+    NAME: "Welt"
+  script: echo $GREETING, $NAME!</code></pre>
+<ul>
+<li class="fragment">Job-Variablen überschreiben Pipeline-Variablen</li>
+</ul>
+<aside class="notes">
+<p><code>variables</code> ist ein Keyword und damit ein Beispiel für einen ungültigen Job-Namen</p>
+</aside>
+</section>
+<section class="slide level1">
+
+<h2 id="variablen---vordefiniert">Variablen - Vordefiniert</h2>
+<p>Beispiele:</p>
+<ul>
+<li class="fragment"><code>CI_COMMIT_SHA</code></li>
+<li class="fragment"><code>CI_PROJECT_TITLE</code></li>
+<li class="fragment"><code>CI_REGISTRY_IMAGE</code></li>
+</ul>
+<aside class="notes">
+<ul>
+<li>SHA des Commits, für den die Pipeline ausgeführt wird.</li>
+<li>Titel des Projekts</li>
+<li>Image des Projekts in der Gitlab Container Registry</li>
+</ul>
+<p>Es gibt sehr viele vordefinierte Variablen, es lohnt sich hier besonders, oft in die Docs zu schauen</p>
+</aside>
+</section>
+<section class="slide level1">
+
+<h2 id="variablen---anwendung">Variablen - Anwendung</h2>
+<ul>
+<li class="fragment">Variablen sind nicht nur im <code>script</code> anwendbar</li>
+<li class="fragment">In der Praxis ist es sinnvoll, prädefinierte und userdefinierte Variablen zu verbinden</li>
+<li class="fragment">Beispiel: dynamisches Image</li>
+</ul>
+<pre ><code class="yaml fragment" data-line-numbers="[|2|5|]">variables:
+  HELPER_IMAGE: $CI_REGISTRY_IMAGE/helper
+
+dynamic_image_job:
+  image: $HELPER_IMAGE
+  script: ...</code></pre>
+</section>
+<section class="slide level1">
+
+<h2 id="job---rules">Job - <code>rules</code></h2>
+<ul>
+<li class="fragment">Die Ausführung von Jobs kann durch <code>rules</code> eingeschränkt werden</li>
+<li class="fragment">Ein Job kann mehrere <code>rules</code> haben</li>
+<li class="fragment"><code>if</code> evaluiert ein Statement</li>
+<li class="fragment"><code>changes</code> überprüft, ob Dateien verändert wurden</li>
+<li class="fragment"><code>exists</code> überprüft, ob Dateien existieren</li>
+<li class="fragment"><code>when</code> - z.B. <code>on_success</code>, <code>on_failure</code>, <code>never</code></li>
+</ul>
+</section>
+<section class="slide level1">
+
+<h2 id="job---rules-1">Job - <code>rules</code></h2>
+<pre ><code class="yaml">rules_job:
+  script: echo "Hello, rules!"
+  rules:
+    - if: '$DONT_RUN_JOB'
+      when: never
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      changes:
+        - foo/**</code></pre>
+<aside class="notes">
+
+</aside>
+</section>
+<section class="slide level1">
+
+<h2 id="rules---workflow"><code>rules</code> - Workflow</h2>
+<pre ><code class="yaml">workflow:
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH  </code></pre>
+<ul>
+<li class="fragment"><code>rules</code> für eine gesamte Pipeline können per <code>workflow</code> definiert werden</li>
+</ul>
+</section>
+<section class="slide level1">
+
+<h2 id="stages">Stages</h2>
+<ul>
+<li class="fragment">Bestimmen die Reihenfolge der Jobs</li>
+<li class="fragment">Werden als Top-Level Array definiert</li>
+<li class="fragment">Es werden alle Jobs einer Stage ausgeführt, bevor die nächste Stage angefangen wird</li>
+</ul>
+</section>
+<section class="slide level1">
+
+<h2 id="stages-1">Stages</h2>
+<pre ><code class="yaml" data-line-numbers="[|1-3|5-15|2,6,10|3,14|]">stages:
+  - test
+  - build
+
+test_unit:
+  stage: test
+  script: echo "running unit tests"
+
+test_integration:
+  stage: test
+  script: echo "running integration tests"
+
+build:
+  stage: build
+  script: echo "building the thing"</code></pre>
+<aside class="notes">
+<p><code>stages</code> ist ein Keyword und damit ein Beispiel für einen ungültigen Job-Namen</p>
+</aside>
+</section>
+<section class="slide level1">
+
+<h2 id="stages---visualisierung">Stages - Visualisierung</h2>
+<figure>
+<img data-src="images/stages.png" title="Test und Build Stages" alt="" /><figcaption>Test und Build Stages</figcaption>
+</figure>
+<aside class="notes">
+<p>CI/CD - Pipelines - Pipeline auswählen</p>
+</aside>
+</section>
+<section class="slide level1">
+
+<h2 id="stages---mehrere-services">Stages - Mehrere Services</h2>
+<pre ><code class="yaml" data-line-numbers="[|1-3|5-14|16-22|5-10,16-18|12-14,20-22|]">stages:
+  - build
+  - deploy
+
+build_foo:
+  stage: build
+  script: "building foo"
+  script:
+    - echo "build foo"
+    - sleep 30
+
+build_bar:
+  stage: build
+  script: "building bar"
+
+deploy_foo:
+  stage: deploy
+  script: "deploy foo"
+
+deploy_bar:
+  stage: deploy
+  script: "deploy bar"</code></pre>
+<aside class="notes">
+<p>Das Beispiel beschreibt zwei Services, <code>foo</code> und <code>bar</code>. Die Einteilung in Stages lässt zuerst beide Bauprozesse stattfinden, dann beide Deployprozesse. Also muss <code>bar</code> warten, bis <code>foo</code> fertig gebaut ist.</p>
+</aside>
+</section>
+<section class="slide level1">
+
+<h2 id="stages---visualisierung-1">Stages - Visualisierung</h2>
+<figure>
+<img data-src="images/stages-services.png" alt="" /><figcaption>Stage-Pipeline für Services <code>foo</code> und <code>bar</code></figcaption>
+</figure>
+</section>
+<section class="slide level1">
+
+<h2 id="dag">DAG</h2>
+<ul>
+<li class="fragment">Directed Acyclic Graph</li>
+<li class="fragment">Alternative / Ergänzung zu Stages</li>
+<li class="fragment">Beschreibt für einen Job die Jobs, die vorher ausgeführt werden müssen</li>
+</ul>
+</section>
+<section class="slide level1">
+
+<h2 id="dag-beispiel">DAG Beispiel</h2>
+<pre ><code class="yaml" data-line-numbers="[|18,23|]">stages:
+  - build
+  - deploy
+
+build_foo:
+  stage: build
+  script:
+    - echo "build foo"
+    - sleep 30
+
+build_bar:
+  stage: build
+  script: echo "build bar"
+
+deploy_foo:
+  stage: deploy
+  script: echo "deploy foo"
+  needs: [build_foo]
+
+deploy_bar:
+  stage: deploy
+  script: echo "deploy bar"
+  needs: [build_bar]</code></pre>
+</section>
+<section class="slide level1">
+
+<h2 id="dag-visualisierung">DAG Visualisierung</h2>
+<figure>
+<img data-src="images/DAG-pipeline.png" alt="" /><figcaption>DAG Pipeline</figcaption>
+</figure>
+</section>
+<section class="slide level1">
+
+<h2 id="dag-visualisierung-1">DAG Visualisierung</h2>
+<figure>
+<img data-src="images/DAG-needs.png" alt="" /><figcaption>DAG Needs</figcaption>
+</figure>
+</section>
+<section class="slide level1">
+
+<h2 id="konfiguration-strukturieren">Konfiguration Strukturieren</h2>
+<ul>
+<li class="fragment">Extends
+<ul>
+<li class="fragment">“erbt” einen bestehenden Job</li>
+</ul></li>
+<li class="fragment">Include
+<ul>
+<li class="fragment">Import von Gitlab-Config Dateien</li>
+</ul></li>
+</ul>
+</section>
+<section class="slide level1">
+
+<h2 id="extends">Extends</h2>
+<pre ><code class="yaml" data-line-numbers="[|1|6|]">.echo_before:
+  before_script:
+    - echo "Starting the job"
+  
+extends_job:
+  extends: .echo_before
+  script: echo "Doing the job"</code></pre>
+<ul>
+<li class="fragment"><code>extends</code> Keyword</li>
+<li class="fragment"><code>.</code> - Jobs werden ignoriert</li>
+</ul>
+<aside class="notes">
+<p>Jobs mit einem “.” werden ignoriert, können aber per <code>extends</code> benutzt werden. Diese Jobs bieten sich dadurch als Template an. Eigenschaften des erweiterten Jobs werden vom erweiternden Job überschrieben</p>
+</aside>
+</section>
+<section class="slide level1">
+
+<h2 id="include">Include</h2>
+<ul>
+<li class="fragment">Andere yaml-Dateien können per <code>include</code> eingebunden werden</li>
+<li class="fragment"><code>include</code>-Dateien werden immer zuerst evaluiert</li>
+<li class="fragment">lokale Config überschreibt <code>include</code></li>
+<li class="fragment">Mögliche <code>include</code>s:
+<ul>
+<li class="fragment"><code>local</code></li>
+<li class="fragment"><code>project</code> / <code>file</code></li>
+<li class="fragment"><code>remote</code></li>
+<li class="fragment"><code>template</code></li>
+</ul></li>
+</ul>
+<aside class="notes">
+
+</aside>
+</section>
+<section class="slide level1">
+
+<h2 id="include-1">Include</h2>
+<pre ><code class="yaml">include:
+  - local: '.gitlab-ci-tests.yml'
+  - project: 'gruppe/gitlab-templates'
+    file: '.gitlab-ci-template.yml'</code></pre>
+</section>
+<section class="slide level1">
+
+<h3 id="carboncopy">Carboncopy</h3>
+<pre ><code class="yaml code-more" data-line-numbers="[|1-7|9-16|18-27|31-46|31-35,45,46|36-44|48-83|85-115|117-127|129-134|136-141|143-157|159-173|175-205|207-211|208]">workflow:
+  rules:
+    # skip all merge rquests labeled as work in progress
+    - if: $CI_COMMIT_MESSAGE =~ /-wip$/
+      when: never
+    # run for all push events and for manual triggers via gitlab web
+    - if: '$CI_PIPELINE_SOURCE == "push" || $CI_PIPELINE_SOURCE == "web"'
+
+variables:
+  # git applies filters such as git-crypt upon fetch which fails,
+  # git clone dosn't, so this resolves the issue
+  GIT_STRATEGY: clone
+  # this is defines the google chat room where notifications are sent to and includes the credentials
+  CHAT_WEBHOOK: ""
+  # this is the utility image and needs to manually be version controlled if the content changes
+  UTIL_IMAGE: "$CI_REGISTRY_IMAGE/ci-utils:v6"
+
+stages:
+  - notification_start
+  - util
+  - test
+  - build
+  - deploy to development
+  - notification_end
+  - deploy to test
+  - deploy to stage
+  - deploy to production
+
+#### Setup Stage Jobs ####
+
+Notification Start:
+  stage: notification_start
+  inherit:
+    variables: true
+  script:
+    - wget -qO-
+      "$CHAT_WEBHOOK&threadKey=$CI_PIPELINE_ID"
+      --header='Content-Type:application/json'
+      --post-data="{cards:[{
+        'header':{'title':'$CI_COMMIT_REF_NAME','subtitle':'$CI_PIPELINE_SOURCE from $GITLAB_USER_NAME'},
+        'sections':[{'widgets':[{'buttons':[{'textButton':{'text':'Pipeline $CI_PIPELINE_ID','onClick':{'openLink':{'url':'$CI_PIPELINE_URL'}}}}]}]}],
+        'sections':[{'widgets':[{'textParagraph':{'text':'$CI_COMMIT_MESSAGE'}}]}],
+      }]}"
+      &gt; /dev/null
+  rules:
+    - if: $CHAT_WEBHOOK
+
+Build Utils Image:
+  stage: util
+  image: docker:dind
+  inherit:
+    variables: true
+  before_script:
+    - test -z "$CHAT_WEBHOOK" || wget -qO-
+      "$CHAT_WEBHOOK&threadKey=$CI_PIPELINE_ID"
+      --header='Content-Type:application/json'
+      --post-data="{cards:[{
+        'header':{'title':'$CI_JOB_STAGE','subtitle':'$CI_JOB_NAME'},
+        'sections':[{'widgets':[{'buttons':[{'textButton':{'text':'Job $CI_JOB_ID','onClick':{'openLink':{'url':'$CI_JOB_URL'}}}}]}]}],
+        'sections':[{'widgets':[{'textParagraph':{'text':'started'}}]}],
+      }]}"
+      &gt; /dev/null
+  script:
+    - printf '%s' "$CI_REGISTRY_PASSWORD" | docker login --username $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
+    - DOCKER_CLI_EXPERIMENTAL=enabled docker manifest inspect $UTIL_IMAGE &gt;/dev/null
+      || {
+        docker build --network host -t $UTIL_IMAGE ops/ci-utils;
+        docker push $UTIL_IMAGE;
+      }
+  after_script:
+    - test -z "$CHAT_WEBHOOK" || wget -qO-
+      "$CHAT_WEBHOOK&threadKey=$CI_PIPELINE_ID"
+      --header='Content-Type:application/json'
+      --post-data="{cards:[{
+        'header':{'title':'$CI_JOB_STAGE','subtitle':'$CI_JOB_NAME'},
+        'sections':[{'widgets':[{'buttons':[{'textButton':{'text':'Job $CI_JOB_ID','onClick':{'openLink':{'url':'$CI_JOB_URL'}}}}]}]}],
+        'sections':[{'widgets':[{'textParagraph':{'text':'finished'}}]}],
+      }]}"
+      &gt; /dev/null
+  rules:
+    - changes:
+      - ops/ci-utils/*
+      - .gitlab-ci.yml
+
+.util:
+  image: $UTIL_IMAGE
+  inherit:
+    variables: true
+  before_script:
+    - test -z "${CHAT_WEBHOOK-}" || wget -qO-
+      "$CHAT_WEBHOOK&threadKey=$CI_PIPELINE_ID"
+      --header='Content-Type:application/json'
+      --post-data="{cards:[{
+        'header':{'title':'$CI_JOB_STAGE','subtitle':'$CI_JOB_NAME'},
+        'sections':[{'widgets':[{'buttons':[{'textButton':{'text':'Job $CI_JOB_ID','onClick':{'openLink':{'url':'$CI_JOB_URL'}}}}]}]}],
+        'sections':[{'widgets':[{'textParagraph':{'text':'started'}}]}],
+      }]}"
+      &gt; /dev/null
+    - printf '%s' "$CI_REGISTRY_PASSWORD" | docker login --username $CI_REGISTRY_USER --password-stdin $CI_REGISTRY
+    - test $CI_PROJECT_PATH = "hosting/carboncopy" || {
+        kubectl config set-cluster avenga-public --server=${CLUSTER_ADDRESS:?};
+        kubectl config set-credentials avenga-public --username=${RANCHER_USERNAME:?} --password=${RANCHER_PASSWORD:?};
+        kubectl config set-context avenga-public --cluster=avenga-public --user=avenga-public;
+      }
+    - test -z "$GIT_CRYPT_KEY" || echo "$GIT_CRYPT_KEY" | base64 -d | git crypt unlock -
+  after_script:
+    - test -z "$CHAT_WEBHOOK" || wget -qO-
+      "$CHAT_WEBHOOK&threadKey=$CI_PIPELINE_ID"
+      --header='Content-Type:application/json'
+      --post-data="{cards:[{
+        'header':{'title':'$CI_JOB_STAGE','subtitle':'$CI_JOB_NAME'},
+        'sections':[{'widgets':[{'buttons':[{'textButton':{'text':'Job $CI_JOB_ID','onClick':{'openLink':{'url':'$CI_JOB_URL'}}}}]}]}],
+        'sections':[{'widgets':[{'textParagraph':{'text':'finished'}}]}],
+      }]}"
+      &gt; /dev/null
+
+.test:
+  stage: test
+  extends: .util
+  script:
+    - ops/test
+  rules:
+    # always allow manual tests
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+      when: manual
+    # automatically run for any nondefault branch
+    - if: '$CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH'
+
+.build:
+  stage: build
+  extends: .util
+  script:
+    - ops/build
+    - ops/push
+
+.deployment:
+  extends: .util
+  script:
+    - ops/regcred
+    - ops/deploy
+    - ops/wait
+
+Notification End Success:
+  stage: notification_end
+  script:
+    - test -z "$CHAT_WEBHOOK" || wget -qO-
+      "$CHAT_WEBHOOK&threadKey=$CI_PIPELINE_ID"
+      --header='Content-Type:application/json'
+      --post-data="{cards:[{
+        'header':{'title':'$CI_COMMIT_REF_NAME','subtitle':'$CI_PIPELINE_SOURCE from $GITLAB_USER_NAME'},
+        'sections':[{'widgets':[{'buttons':[{'textButton':{'text':'Pipeline $CI_PIPELINE_ID','onClick':{'openLink':{'url':'$CI_PIPELINE_URL'}}}}]}]}],
+        'sections':[{'widgets':[{'textParagraph':{'text':'Automatic Pipeline Successfull, ready for manual deployment.'}}]}],
+      }]}"
+      &gt; /dev/null
+  rules:
+    - if: $CHAT_WEBHOOK
+      when: on_success
+
+Notification End Failure:
+  stage: notification_end
+  script:
+    - test -z "$CHAT_WEBHOOK" || wget -qO-
+      "$CHAT_WEBHOOK&threadKey=$CI_PIPELINE_ID"
+      --header='Content-Type:application/json'
+      --post-data="{cards:[{
+        'header':{'title':'$CI_COMMIT_REF_NAME','subtitle':'$CI_PIPELINE_SOURCE from $GITLAB_USER_NAME'},
+        'sections':[{'widgets':[{'buttons':[{'textButton':{'text':'Pipeline $CI_PIPELINE_ID','onClick':{'openLink':{'url':'$CI_PIPELINE_URL'}}}}]}]}],
+        'sections':[{'widgets':[{'textParagraph':{'text':'Automatic Pipeline Failure, deployment blocked.'}}]}],
+      }]}"
+      &gt; /dev/null
+  rules:
+    - if: $CHAT_WEBHOOK
+      when: on_failure
+
+.deploy to development:
+  stage: deploy to development
+  extends: .deployment
+  variables:
+    ENVIRONMENT: development
+  rules:
+    # always allow manual deployment to development
+    - when: manual
+    # automatically run for the default branch
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+
+.deploy to test:
+  stage: deploy to test
+  extends: .deployment
+  variables:
+    ENVIRONMENT: test
+  when: manual
+
+.deploy to stage:
+  stage: deploy to stage
+  extends: .deployment
+  variables:
+    ENVIRONMENT: stage
+  when: manual
+
+.deploy to production:
+  stage: deploy to production
+  extends: .deployment
+  variables:
+    ENVIRONMENT: production
+  when: manual
+
+include:
+  - local: '/apps/nginx/.gitlab-ci.yml'
+  - local: '/apps/node/.gitlab-ci.yml'
+  - local: '/apps/wordpress/.gitlab-ci.yml'</code></pre>
+</section>
+<section class="slide level1">
+
+<h3 id="carboncopy---node">Carboncopy - Node</h3>
+<pre ><code class="yaml code-more" data-line-numbers="[|1-4|6-9|11-15|17-33|]">Test node:
+  extends: .test
+  variables:
+    APP: node
+
+Build node:
+  extends: .build
+  variables:
+    APP: node
+
+Deploy node to development:
+  extends: .deploy to development
+  needs: ["Build node"]
+  variables:
+    APP: node
+
+Deploy node to test:
+  extends: .deploy to test
+  needs: ["Build node"]
+  variables:
+    APP: node
+
+Deploy node to stage:
+  extends: .deploy to stage
+  needs: ["Build node"]
+  variables:
+    APP: node
+
+Deploy node to production:
+  extends: .deploy to production
+  needs: ["Deploy node to stage"]
+  variables:
+    APP: node</code></pre>
+</section>
+<section id="fin" class="slide level1">
+<h1>Fin</h1>
+<ul>
+<li class="fragment"><a href="https://docs.gitlab.com/ee/ci/">Gitlab CI Docs</a>: https://docs.gitlab.com/ee/ci/
+<ul>
+<li class="fragment"><a href="https://docs.gitlab.com/ee/ci/yaml/README.html"><code>.gitlab-ci.yml</code> Reference</a>: https://docs.gitlab.com/ee/ci/yaml/README.html</li>
+</ul></li>
+<li class="fragment"><a href="https://code.avenga.cloud/hosting/carboncopy">Carbon Copy</a>: https://code.avenga.cloud/hosting/carboncopy</li>
+</ul>
+</section>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/reveal.js@^4//dist/reveal.js"></script>
+
+  // reveal.js plugins
+  <script src="https://unpkg.com/reveal.js@^4//plugin/notes/notes.js"></script>
+  <script src="https://unpkg.com/reveal.js@^4//plugin/search/search.js"></script>
+  <script src="https://unpkg.com/reveal.js@^4//plugin/zoom/zoom.js"></script>
+  <script src="https://unpkg.com/reveal.js@^4//plugin/highlight/highlight.js"></script>
+
+  <script>
+
+      // Full list of configuration options available at:
+      // https://revealjs.com/config/
+      Reveal.initialize({
+        // Push each slide change to the browser history
+        history: true,
+        // Vertical centering of slides
+        center: false,
+        // Transition style
+        transition: 'fade', // none/fade/slide/convex/concave/zoom
+        // The "normal" size of the presentation, aspect ratio will be preserved
+        // when the presentation is scaled to fit different resolutions. Can be
+        // specified using percentage units.
+        width: 1280,
+
+        // reveal.js plugins
+        plugins: [
+          RevealHighlight,
+          RevealNotes,
+          RevealSearch,
+          RevealZoom
+        ]
+      });
+    </script>
+    </body>
+</html>
